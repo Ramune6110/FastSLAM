@@ -32,8 +32,8 @@ Qsigma=diag([0.1 toRadian(5)]).^2;
 global Rsigma
 Rsigma=diag([0.1]).^2;
 
-%RFIFタグの位置 [x, y]
-RFID=[10 0;
+%LMタグの位置 [x, y]
+LM=[10 0;
       10 10;
       0  15
       -5 20];
@@ -53,7 +53,7 @@ for i=1 : nSteps
     % Input
     u=doControl(time);
     % Observation
-    [z,xTrue, u]=Observation(xTrue, u, RFID, MAX_RANGE);
+    [z,xTrue, u]=Observation(xTrue, u, LM, MAX_RANGE);
     
     % ------ Particle Filter --------
     for ip=1:NP
@@ -82,7 +82,7 @@ for i=1 : nSteps
 end
 toc
 
-DrawGraph(result);
+DrawGraph(result, LM);
 
 function [px_res, pw_res] = Resampling( px, pw, Nth, NP)
     Neff   = 1.0 / (pw * pw');
@@ -120,19 +120,17 @@ end
 
 function x = f(x, u)
     % Motion Model
-    
     global dt;
-    
-    F = [1 0 0
-        0 1 0
-        0 0 1];
-    
-    B = [
-        dt*cos(x(3)) 0
-        dt*sin(x(3)) 0
-        0 dt];
-    
-    x= F*x+B*u;
+    if u(2) == 0
+        F = [u(1) * dt * cos(x(3))
+             u(1) * dt * sin(x(3))
+             u(2) * dt];
+    else
+        F = [u(1) / u(2) * (sin(x(3) + u(2) * dt) - sin(x(3)))
+             u(1) / u(2) * (-cos(x(3) + u(2) * dt) + cos(x(3)))
+             u(2) * dt];
+    end
+    x = x + F;
 end
 
 function u = doControl(time)
@@ -147,7 +145,7 @@ function u = doControl(time)
 end
 
 %Calc Observation from noise prameter
-function [z, x, u] = Observation(x, u, RFID,MAX_RANGE)
+function [z, x, u] = Observation(x, u, LM,MAX_RANGE)
     global Qsigma;
     global Rsigma;
     
@@ -155,15 +153,15 @@ function [z, x, u] = Observation(x, u, RFID,MAX_RANGE)
     u=u+sqrt(Qsigma)*randn(2,1);%add Process Noise
     %Simulate Observation
     z=[];
-    for iz=1:length(RFID(:,1))
-        d=norm(RFID(iz,:)-x(1:2)');
+    for iz=1:length(LM(:,1))
+        d=norm(LM(iz,:)-x(1:2)');
         if d<MAX_RANGE %観測範囲内
-            z=[z;[d+sqrt(Rsigma)*randn(1,1) RFID(iz,:)]];
+            z=[z;[d+sqrt(Rsigma)*randn(1,1) LM(iz,:)]];
         end
     end
 end
 
-function []=DrawGraph(result)
+function []=DrawGraph(result, LM)
     %Plot Result
     
     figure(1);
@@ -172,11 +170,12 @@ function []=DrawGraph(result)
     set(gca, 'fontsize', 16, 'fontname', 'times');
     plot(x(:,1), x(:,2),'-.b','linewidth', 4); hold on;
     plot(x(:,3), x(:,4),'r','linewidth', 4); hold on;
+    plot(LM(:, 1), LM(:, 2), 'pentagram', 'MarkerSize', 15, 'MarkerFaceColor', 'g', 'MarkerEdgeColor', 'blue'); hold on;
     
     title('PF Localization Result', 'fontsize', 16, 'fontname', 'times');
     xlabel('X (m)', 'fontsize', 16, 'fontname', 'times');
     ylabel('Y (m)', 'fontsize', 16, 'fontname', 'times');
-    legend('Ground Truth','PF');
+    legend('Ground Truth','PF', 'LandMark');
     grid on;
     axis equal;
 end
