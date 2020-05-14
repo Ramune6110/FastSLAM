@@ -1,23 +1,23 @@
 clear;
 close all;
 clc;
- 
-time = 0;
-endtime = 60; % [sec]
+
 global dt;
-dt = 0.1; % [sec]
+time    = 0;
+endtime = 60; % [sec]
+dt      = 0.1; % [sec]
  
 nSteps = ceil((endtime - time)/dt);
  
-result.time=[];
-result.xTrue=[];
-result.xEst=[];
+result.time  = [];
+result.xTrue = [];
+result.xEst  = [];
 
 % State Vector [x y yaw]'
-xEst=[0 0 0]';
+xEst = [0 0 0]';
  
 % True State
-xTrue=xEst;
+xTrue = xEst;
  
 % Covariance Matrix for predict
 Q = diag([0.1 0.1 toRadian(3)]).^2;
@@ -27,23 +27,23 @@ R = diag([10 toRadian(30)]).^2;%range[m], Angle[rad]
 
 % Simulation parameter
 global Qsigma
-Qsigma=diag([0.1 toRadian(5)]).^2;
+Qsigma = diag([0.1 toRadian(5)]).^2;
  
 global Rsigma
-Rsigma=diag([0.1 toRadian(1)]).^2;
+Rsigma = diag([0.1 toRadian(1)]).^2;
 
 %LMタグの位置 [x, y]
-LM=[10 0;
-    10 10;
-    0  15;
-    -5 20];
+LM = [10 0;
+      10 10;
+      0 15;
+     -5 20];
   
 MAX_RANGE = 20;%最大観測距離
 NP        = 100;%パーティクル数
 NTh       = NP / 2.0;%リサンプリングを実施する有効パーティクル数
 
-px=repmat(xEst,1,NP);%パーティクル格納変数
-pw=zeros(1,NP)+1/NP;%重み変数
+px = repmat(xEst, 1, NP);%パーティクル格納変数
+pw = zeros(1, NP) + 1 / NP;%重み変数
  
 tic;
 % Main loop
@@ -54,8 +54,8 @@ for i = 1 : nSteps
     % Observation
     [z, xTrue, u] = Observation(xTrue, u, LM, MAX_RANGE);
     % ------ Particle Filter --------
-    for ip=1:NP
-        x = px(:,ip);
+    for ip = 1 : NP
+        x = px(:, ip);
         w = pw(ip);
         % Dead Reckoning and random sampling
         x = f(x, u) + sqrt(Q) * randn(3,1);
@@ -72,16 +72,15 @@ for i = 1 : nSteps
         px(:, ip) = x;%格納
         pw(ip)    = w;
     end
-    
     pw       = Normalize(pw, NP);%正規化
     [px, pw] = Resampling(px, pw, NTh, NP);%リサンプリング
     xEst     = px * pw';%最終推定値は期待値
     xEst(3)  = PI2PI(xEst(3));%角度補正
     
     % Simulation Result
-    result.time=[result.time; time];
-    result.xTrue=[result.xTrue; xTrue'];
-    result.xEst=[result.xEst;xEst'];
+    result.time  = [result.time; time];
+    result.xTrue = [result.xTrue; xTrue'];
+    result.xEst  = [result.xEst;xEst'];
 end
 toc
 
@@ -136,7 +135,6 @@ end
 
 function p = likelihood(error, sigma)
     %ガウス分布の確率密度を計算する関数
-    %p=1/sqrt(2*pi*sigma^2)*exp(-(x-u)^2/(2*sigma^2));
     p = (1 / (sqrt(2 * pi * det(sigma))) * exp(- 1 / 2 * error' / sigma * error));
 end
 
@@ -159,7 +157,6 @@ end
 function u = doControl(time)
     %Calc Input Parameter
     T=10; % [sec]
-    
     % [V yawrate]
     V=1.0; % [m/s]
     yawrate = 5; % [deg/s]
@@ -172,12 +169,12 @@ function [z, x, u] = Observation(x, u, LM, MAX_RANGE)
     global Qsigma Rsigma;
     
     x = f(x, u);% Ground Truth
-    u = u + sqrt(Qsigma) * randn(2,1);%add Process Noise
+    u = u + sqrt(Qsigma) * randn(2, 1);%add Process Noise
     %Simulate Observation
     z = [];
     for iz = 1 : length(LM(:, 1))
-        dx = LM(iz, 1) - x(1);
-        dy = LM(iz, 2) - x(2);
+        dx       = LM(iz, 1) - x(1);
+        dy       = LM(iz, 2) - x(2);
         distance = sqrt(dx^2 + dy^2);
         theta    = atan2(dy, dx) - x(3);
         if distance < MAX_RANGE %観測範囲内
