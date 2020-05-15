@@ -293,11 +293,11 @@ function []=DrawGraph(result, LM, mu)
     for i = 1 : size(LM, 1)
         plot(mu(298, i), mu(299, i), 'pentagram', 'MarkerSize', 15); hold on;
     end
-    xlim([-5 5]); ylim([-5 5]);
+    xlim([-6 6]); ylim([-6 6]);
     title('PF Localization Result', 'fontsize', 16, 'fontname', 'times');
     xlabel('X (m)', 'fontsize', 16, 'fontname', 'times');
     ylabel('Y (m)', 'fontsize', 16, 'fontname', 'times');
-    legend('Ground Truth','PF', 'LandMark', 'Estimated LandMark');
+    legend('Ground Truth','PF', 'LandMark', 'Estimated LandMark', 'Location', 'best');
     grid on;
     axis equal;
 end
