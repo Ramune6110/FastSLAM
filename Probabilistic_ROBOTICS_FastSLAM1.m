@@ -38,9 +38,10 @@ LM = [-4 2;
       2 -3;
       3  3];
 
-MAX_RANGE = 10;%最大観測距離
-NP        = 100;%パーティクル数
- 
+MAX_RANGE = 10;  %最大観測距離
+NP        = 100; %パーティクル数
+IndexMax  = 1;   %重みの一番大きいパーティクルのインデックス
+
 px = repmat(xEst, 1, NP);%パーティクル格納変数
 pw = zeros(1, NP) + 1 / NP;%重み変数
 % 観測値に対するflag
@@ -91,12 +92,20 @@ for i = 1 : nSteps
                 w = w * likelihood(error, Rt);
             end
         end
-        px(:, ip) = x;%格納
+        px(:, ip) = x; %格納
         pw(ip)    = w;
+    end
+    % 重みが一番大きいパーティクルを探してそのパーティクルの持つ地図を描画する
+    max = pw(1);
+    for index = 2 : NP
+        if pw(index) > max
+            max      = pw(index);
+            IndexMax = index;
+        end
     end
     pw       = Normalize(pw, NP);%正規化
     [px, pw] = Resampling(px, pw, NP);%リサンプリング
-    xEst     = px * pw';%最終推定値は期待値
+    xEst     = px * pw';%最終推定値は加重平均
     xEst(3)  = PI2PI(xEst(3));%角度補正
     
     % Simulation Result
@@ -106,14 +115,14 @@ for i = 1 : nSteps
     
     %Animation (remove some flames)
     if AnimationFlag == true
-        Animation(i, NP, px, xTrue, result, LM, z, mu, Sigma);
+        Animation(i, NP, px, xTrue, result, LM, z, mu, Sigma, IndexMax);
     end
 end
 toc
 
-DrawGraph(result, LM, mu);
+DrawGraph(result, LM, mu, IndexMax);
 
-function [] = Animation(i, NP, px, xTrue, result, LM, z, mu, Sigma)
+function [] = Animation(i, NP, px, xTrue, result, LM, z, mu, Sigma, Index)
     if rem(i,5)==0 
     hold off;
     arrow=0.5;
@@ -130,7 +139,7 @@ function [] = Animation(i, NP, px, xTrue, result, LM, z, mu, Sigma)
             plot(ray(:,1), ray(:,2),'-g');hold on;
         end
     end
-    ShowErrorEllipse(z, mu, Sigma);
+    ShowErrorEllipse(z, mu, Sigma, Index);
     plot(result.xEst(:,1),result.xEst(:,2),'.r');hold on;
     axis equal;
     grid on;
@@ -138,10 +147,10 @@ function [] = Animation(i, NP, px, xTrue, result, LM, z, mu, Sigma)
     end
 end
 
-function [] = ShowErrorEllipse(z, mu, Sigma)
+function [] = ShowErrorEllipse(z, mu, Sigma, Index)
     % caluclate eig, eig_valus
     for i = 1:length(z(:, 1))
-        [eig_vec, eig_valus] = eig(Sigma(298 : 299, i * 3 - 2: i * 3 - 1));
+        [eig_vec, eig_valus] = eig(Sigma(Index * 3 - 2 : Index * 3 - 1, i * 3 - 2: i * 3 - 1));
         % eig comparizon
         if eig_valus(1, 1) >= eig_valus(2, 2)
             long_axis  = 3 * sqrt(eig_valus(1, 1));
@@ -161,8 +170,8 @@ function [] = ShowErrorEllipse(z, mu, Sigma)
         % Ellipse Rotation
         Rr = [cos(angle) sin(angle); -sin(angle) cos(angle)];
         x = Rr * x;
-        plot(x(1, :) + mu(298, i), x(2, :) + mu(299, i), '-.b', 'linewidth', 1.0); hold on;
-        plot(mu(298, i), mu(299, i), 'pentagram', 'MarkerSize', 15); hold on;
+        plot(x(1, :) + mu(Index * 3 - 2, i), x(2, :) + mu(Index * 3 - 1, i), '-.b', 'linewidth', 1.0); hold on;
+        plot(mu(Index * 3 - 2, i), mu(Index * 3 - 1, i), 'pentagram', 'MarkerSize', 15); hold on;
     end
 end
 
@@ -283,7 +292,7 @@ function angle=PI2PI(angle)
     angle(i) = angle(i) + 2*pi;
 end
 
-function []=DrawGraph(result, LM, mu)
+function []=DrawGraph(result, LM, mu, Index)
     %Plot Result
     figure(1);
     hold off;
@@ -293,7 +302,7 @@ function []=DrawGraph(result, LM, mu)
     plot(x(:,3), x(:,4),'r','linewidth', 4); hold on;
     plot(LM(:, 1), LM(:, 2), 'pentagram', 'MarkerSize', 15, 'MarkerFaceColor', 'g', 'MarkerEdgeColor', 'blue'); hold on;
     for i = 1 : size(LM, 1)
-        plot(mu(298, i), mu(299, i), 'pentagram', 'MarkerSize', 15); hold on;
+        plot(mu(Index * 3 - 2, i), mu(Index * 3 - 1, i), 'pentagram', 'MarkerSize', 15); hold on;
     end
     xlim([-6 6]); ylim([-6 6]);
     title('PF Localization Result', 'fontsize', 16, 'fontname', 'times');
