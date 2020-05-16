@@ -72,10 +72,10 @@ for i = 1 : nSteps
                 % 観測値の平均値の初期化
                 mu(3 * ip - 2:3 * ip - 1, iz) = xEst(1 : 2) + [z(iz, 1) * cos(PI2PI(xEst(3) + z(iz, 2))); z(iz, 1) * sin(PI2PI(xEst(3) + z(iz, 2)))]; % (8.44)式
                 % ヤコビアンH行列
-                H = jacobian_H(mu, x);
+                H = jacobian_H(mu(3 * ip - 2:3 * ip - 1, iz), x);
                 % 観測値の共分散行列初期化
                 Sigma(3 * ip - 2:3 * ip - 1, 3 * iz - 2:3 * iz - 1) = inv(H' / R * H); %(8,48)式
-                flag(iz, ip)     = 1.0;
+                flag(iz, ip) = 1.0;
             else
                 % LMの観測が初めてではない場合
                 [expectedZ, H] = measurement_model(mu(3 * ip - 2:3 * ip - 1, iz), x);
@@ -84,11 +84,11 @@ for i = 1 : nSteps
                 % カルマンゲインの計算
                 K = (Sigma(3 * ip - 2:3 * ip - 1, 3 * iz - 2:3 * iz - 1) * H') / Rt; % (8.38)式
                 % 平均値の更新
-                error         = [z(iz, 1) - expectedZ(1); z(iz, 2) - expectedZ(2)];
+                error = [z(iz, 1) - expectedZ(1); z(iz, 2) - expectedZ(2)];
                 mu(3 * ip - 2:3 * ip - 1, iz) = mu(3 * ip - 2:3 * ip - 1, iz) + K * error; %(8.37)式
                 % 共分散の更新
                 Sigma(3 * ip - 2:3 * ip - 1, 3 * iz - 2: 3 * iz - 1) = (eye(2) - K * H) * Sigma(3 * ip - 2:3 * ip - 1, 3 * iz - 2:3 * iz - 1); % (8.40)式
-                w                = w * likelihood(error, Rt);
+                w = w * likelihood(error, Rt);
             end
         end
         px(:, ip) = x;%格納
@@ -165,6 +165,7 @@ function [] = ShowErrorEllipse(z, mu, Sigma)
         plot(mu(298, i), mu(299, i), 'pentagram', 'MarkerSize', 15); hold on;
     end
 end
+
 % function [px_res, pw_res] = Resampling( px, pw, Nth, NP)
 %     Neff   = 1.0 / (pw * pw');
 %     if Neff < Nth
@@ -234,10 +235,11 @@ function u = doControl()
     u =[V; toRadian(yawrate)]';
 end
 
-function H = jacobian_H(z, x)
+function H = jacobian_H(mu, x)
     % ヤコビアン行列H
-    H = [(z(3) - x(1)) / z(1) (z(4) - x(2)) / z(1);
-         (x(2) - z(4)) / z(1)^2 (z(3) - x(1)) / z(1)^2];
+    distance = sqrt((x(1) - mu(1))^2 + (x(2) - mu(2))^2);
+    H = [(mu(1) - x(1)) / distance (mu(2) - x(2)) / distance;
+         (x(2) - mu(2)) / distance^2 (mu(1) - x(1)) / distance^2];
 end
 
 function [expectedZ, H] = measurement_model(mu, x)
